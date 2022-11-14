@@ -1,1 +1,1 @@
-# Project determined to make calculations of matrices for machine learning in molecular modeling faster
+# Projected determined to linear regression implementation in c++
