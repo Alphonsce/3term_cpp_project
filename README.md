@@ -1,1 +1,1 @@
-# Projected determined to linear regression and fully connected neural net implementation in c++
+# Projected determined to linear regression and(or) fully connected neural net implementation in c++
