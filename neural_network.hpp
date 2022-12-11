@@ -1,30 +1,47 @@
 #pragma once
+
 #include "matrix.hpp"
 #include <vector>
 #include <cstdlib>
 #include <cmath>
+#include <string>
 
 namespace sp
 {
-
-    //simple activation function
     inline float Sigmoid(float x)
     {
         return 1.0f / (1 + exp(-x));
     }
 
     //derivative of activation function
-    // x = sigmoid(input);
     inline float DSigmoid(float x)
     {
         return (x * (1 - x));
     }
 
+    inline float ReLU(float x)
+    {
+        if (x >= 0) return x;
+        return 0;
+    }
+
+    // Derivative of relu
+    inline float DReLU(float x)
+    {
+        if (x >= 0) return 1;
+        return 0;
+    }
+
+    inline float DId(float x)
+    {
+        return 1;
+    }
     // calss representing a simple densely connected neural network
-    // i.e. every neuron  is connected to every neuron of next layer
     class SimpleNeuralNetwork
     {
         public:
+            std::string _type;       // classification (cl) or regression (reg)
+            std::string _loss;      // simple / MSE / entropy
             std::vector<uint32_t> _topology;
             std::vector<Matrix2D<float>> _weightMatrices;
             std::vector<Matrix2D<float>> _valueMatrices;
@@ -34,12 +51,13 @@ namespace sp
             
             // topology defines the no.of neurons for each layer
             // learning rate defines how much modification should be done in each backwords propagation i.e. training
-            SimpleNeuralNetwork(std::vector<uint32_t> topology,float learningRate = 0.1f)
-                :_topology(topology),
+            SimpleNeuralNetwork(std::vector<uint32_t> topology, float learningRate=0.1f, std::string type="cl", std::string loss="simple"):
+                _topology(topology),
                 _weightMatrices({}),
                 _valueMatrices({}),
                 _biasMatrices({}),
-                _learningRate(learningRate)
+                _learningRate(learningRate),
+                _type(type)
             {
                 // initializing weight and bias matrices with random weights
                 for(uint32_t i = 0; i < topology.size() - 1; i++)
@@ -70,19 +88,25 @@ namespace sp
                 for(uint32_t i = 0; i < input.size(); i++)
                     values._vals[i] = input[i];
                 
-                //forwording inputs to next layers
+                //forwarding inputs to next layers
                 for(uint32_t i = 0; i < _weightMatrices.size(); i++)
                 {
                     // y = activationFunc( x1 * w1 + x2 * w2 + ... + b)  
                     _valueMatrices[i] = values;
                     values = values.multiply(_weightMatrices[i]);
                     values = values.add(_biasMatrices[i]);
-                    values = values.applyFunction(Sigmoid);
+                    if (this->_type == "cl") {
+                        values = values.applyFunction(Sigmoid);
+                        // _valueMatrices[_weightMatrices.size()] = values;
+                    }
+                    else if (i < _weightMatrices.size() - 1 && this->_type != "cl") {      // Перед аутпутом при регрессии не надо использовать релу
+                        values = values.applyFunction(ReLU);
+                        // _valueMatrices[_weightMatrices.size()] = values;
+                    }
                 }
                 _valueMatrices[_weightMatrices.size()] = values;
                 return true;
             }
-
 
             // function to train with given output vector
             bool backPropagate(std::vector<float> targetOutput)
@@ -90,34 +114,55 @@ namespace sp
                 if(targetOutput.size() != _topology.back())
                     return false;
 
-                // determine the simple error
-                // error = target - output
+                // determine the simple error:
+                // error = target - output;
                 Matrix2D<float> errors(targetOutput.size(), 1);
                 errors._vals = targetOutput;
-                errors = errors.add(_valueMatrices.back().negetive());
-                
+                // so: d(error) / dw = -value; for output layer:
+                errors = errors.add(_valueMatrices.back().negative());
 
-                // back propagating the error from output layer to input layer
+                // back propagating the error from output layer to input layer: reverse cycle
                 // and adjusting weights of weight matrices and bias matrics
-                for(int32_t i = _weightMatrices.size() - 1; i >= 0; i--)
+                for (int32_t i = _weightMatrices.size() - 1; i >= 0; i--)
                 {
-                    
                     //calculating errrors for previous layer
                     Matrix2D<float> prevErrors = errors.multiply(_weightMatrices[i].transpose());
 
                     //calculating gradient i.e. delta weight (dw)
                     //dw = lr * error * d/dx(activated value)
-                    Matrix2D<float> dOutputs = _valueMatrices[i + 1].applyFunction(DSigmoid);
-                    Matrix2D<float> gradients = errors.multiplyElements(dOutputs);
-                    gradients = gradients.multiplyScaler(_learningRate);
-                    Matrix2D<float> weightGradients = _valueMatrices[i].transpose().multiply(gradients);
+                    if (this->_type == "cl") {
+                        Matrix2D<float> dOutputs = _valueMatrices[i + 1].applyFunction(DSigmoid);
+                        Matrix2D<float> gradients = errors.multiplyElements(dOutputs);
+                        gradients = gradients.multiplyScaler(_learningRate);
+                        Matrix2D<float> weightGradients = _valueMatrices[i].transpose().multiply(gradients);
+
+                        //adjusting bias and weight
+                        _biasMatrices[i] = _biasMatrices[i].add(gradients);
+                        _weightMatrices[i] = _weightMatrices[i].add(weightGradients);
+                    }
+                    else if (i != _weightMatrices.size() - 1) {
+                        Matrix2D<float> dOutputs = _valueMatrices[i + 1].applyFunction(DReLU);
+                        Matrix2D<float> gradients = errors.multiplyElements(dOutputs);
+                        gradients = gradients.multiplyScaler(_learningRate);
+                        Matrix2D<float> weightGradients = _valueMatrices[i].transpose().multiply(gradients);
                     
-                    //adjusting bias and weight
-                    _biasMatrices[i] = _biasMatrices[i].add(gradients);
-                    _weightMatrices[i] = _weightMatrices[i].add(weightGradients);
+                        //adjusting bias and weight
+                        _biasMatrices[i] = _biasMatrices[i].add(gradients);
+                        _weightMatrices[i] = _weightMatrices[i].add(weightGradients);
+                    }
+                    else {
+                        Matrix2D<float> dOutputs = _valueMatrices[i + 1].applyFunction(DId);
+                        Matrix2D<float> gradients = errors.multiplyElements(dOutputs);
+                        gradients = gradients.multiplyScaler(_learningRate);
+                        Matrix2D<float> weightGradients = _valueMatrices[i].transpose().multiply(gradients);
+                        
+                        //adjusting bias and weight
+                        _biasMatrices[i] = _biasMatrices[i].add(gradients);
+                        _weightMatrices[i] = _weightMatrices[i].add(weightGradients);
+                    }
+                    
                     errors = prevErrors;
                 }
-                
                 return true;
             }
             
@@ -128,6 +173,5 @@ namespace sp
             }
 
     }; // class SimpleNeuralNetwork
-
 
 }
