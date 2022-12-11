@@ -21,16 +21,30 @@ std::vector<T> vectorFromCsv(std::string path) {
 
 // class which tests the quality of the network and outputs results to the file; For classification will return accuracy; MSE for regression.
 template<typename T>
-float getQuality(std::vector<T> X_test, std::vector<T> y_true, sp::SimpleNeuralNetwork nn, bool is_classification=true) {
+void getQuality(std::vector<std::vector<T>> X_test, std::vector<std::vector<T>> Y_true, sp::SimpleNeuralNetwork nn, bool is_classification=true) {
     /*
     is_classification: if true: will return accuracy
     */
-    std::vector<T> y_pred;
-    for(std::vector<float> input: X_test) {
-        nn.feedForword(X_test);
-        std::vector<float> preds = nn.getPredictions();
-        std::cout << input[0] << ", " << input[1] <<" => " << std::round(preds[0]) << std::endl;
+    T running_sq_sum = 0.;
+    float running_correct = 0.;
+
+    for (size_t i = 0; i < X_test.size(); i++) {
+        std::vector<T> input = X_test[i];
+        nn.feedForword(input);
+        std::vector<T> preds = nn.getPredictions();
+        if (is_classification) {
+            if (std::round(preds[0]) == Y_true[i][0]) running_correct += 1.;
+        } else {
+            running_sq_sum += (preds[0] - Y_true[i][0]) * (preds[0] - Y_true[i][0]);
+        }
     }
+
+    if (is_classification) {
+        std::cout << "Accuracy:" << running_correct / X_test.size() << std::endl;
+    } else {
+        std::cout << "MSE:" << running_sq_sum / X_test.size() << std::endl;
+    }
+    std::cout << "---------------" << std::endl;
 }
 
 void xorTesting() {
@@ -44,13 +58,13 @@ void xorTesting() {
         {1.0f, 1.0f},
         {-1.0f, -1.0f},
         {1.0f, -1.0f},
-        {-1.0f, 1.0f}
+        {-1.0f, 1.0f},
     }; 
     std::vector<std::vector<float>> trainOutput = {
         {1.0f},
         {1.0f},
         {0.0f},
-        {0.0f}
+        {0.0f},
     };
 
     uint32_t epochs = 10000;
@@ -73,6 +87,56 @@ void xorTesting() {
         std::vector<float> preds = nn.getPredictions();
         std::cout << input[0] << ", " << input[1] <<" => " << std::round(preds[0]) << std::endl;    // we can predict vector values, that's why preds[0] - in our topology it is vec of 1 elem
     }
+
+    getQuality(trainInput, trainOutput, nn, true);
+}
+
+void squareTesting() {
+    std::vector<uint32_t> topology = {1, 3, 5, 7, 1};
+    sp::SimpleNeuralNetwork nn(topology, 0.0004, "reg");
+
+    std::vector<std::vector<float>> trainInput = {
+        // {0.25},
+        {1.0},
+        {4.},
+        {9.},
+        {16.},
+        {25.},
+        {36.}
+    };
+
+    std::vector<std::vector<float>> trainOutput = {
+        // {0.5},
+        {1.},
+        {2.},
+        {3.},
+        {4.},
+        {5.},
+        {6.}
+    }; 
+
+    uint32_t epochs = 15000;
+    
+    //training the neural network with randomized data
+    std::cout << "training start\n";
+
+    for(uint32_t ep_num = 0; ep_num < epochs; ep_num++)
+    {
+        uint32_t index = rand() % 4;
+        nn.feedForword(trainInput[index]);
+        nn.backPropagate(trainOutput[index]);
+    }
+
+    std::cout << "training complete\n";
+
+    for(std::vector<float> input: trainInput)
+    {
+        nn.feedForword(input);
+        std::vector<float> preds = nn.getPredictions();
+        std::cout << input[0] <<" => " << preds[0] << std::endl;    // we can predict vector values, that's why preds[0] - in our topology it is vec of 1 elem
+    }
+
+    getQuality(trainInput, trainOutput, nn, false);
 }
 
 // If something is not working - tell it is just simplest version possible with very stupid error
@@ -80,7 +144,9 @@ int main()
 {
     // creating neural network
 
-    // xorTesting();
+    xorTesting();
+
+    squareTesting();
 
     // Теперь на других данных:
 
@@ -103,49 +169,6 @@ int main()
     //     {-1.0},
     //     {1.0}
     // };
-
-    std::vector<uint32_t> topology = {1, 3, 5, 7, 1};
-    sp::SimpleNeuralNetwork nn(topology, 0.0001, "reg");
-
-    std::vector<std::vector<float>> trainInput = {
-        // {0.5},
-        {1.},
-        {2.},
-        {3.},
-        {4.},
-        {5.},
-        {6.}
-    }; 
-    std::vector<std::vector<float>> trainOutput = {
-        // {0.25},
-        {1.0},
-        {4.},
-        {9.},
-        {16.},
-        {25.},
-        {36.}
-    };
-
-    uint32_t epochs = 10000;
-    
-    //training the neural network with randomized data
-    std::cout << "training start\n";
-
-    for(uint32_t ep_num = 0; ep_num < epochs; ep_num++)
-    {
-        uint32_t index = rand() % 4;
-        nn.feedForword(trainInput[index]);
-        nn.backPropagate(trainOutput[index]);
-    }
-
-    std::cout << "training complete\n";
-
-    for(std::vector<float> input: trainInput)
-    {
-        nn.feedForword(input);
-        std::vector<float> preds = nn.getPredictions();
-        std::cout << input[0] <<" => " << preds[0] << std::endl;    // we can predict vector values, that's why preds[0] - in our topology it is vec of 1 elem
-    }
 
     return 0;
 }
