@@ -143,7 +143,11 @@ public:
 
     T determinant()
     {
-        assert(_rows == _cols);
+        if (_rows == _cols)
+        {
+            throw;
+        }
+        
         T output = T();
         if (_rows == 1)
         {
@@ -163,7 +167,11 @@ public:
 
     Matrix2D adjoint()
     {
-        assert(_rows == _cols);
+        if (_rows == _cols)
+        {
+            throw;
+        }
+
         Matrix2D output(_cols, _rows);
         int32_t sign = 1;
         for (uint32_t y = 0; y < _rows; y++)

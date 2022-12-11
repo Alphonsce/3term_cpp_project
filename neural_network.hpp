@@ -175,3 +175,31 @@ namespace sp
     }; // class SimpleNeuralNetwork
 
 }
+
+// function which tests the quality of the network and outputs results to the file; For classification will return accuracy; MSE for regression.
+template<typename T>
+void getQuality(std::vector<std::vector<T>> X_test, std::vector<std::vector<T>> Y_true, sp::SimpleNeuralNetwork nn, bool is_classification=true) {
+    /*
+    is_classification: if true: will return accuracy
+    */
+    T running_sq_sum = 0.;
+    float running_correct = 0.;
+
+    for (size_t i = 0; i < X_test.size(); i++) {
+        std::vector<T> input = X_test[i];
+        nn.feedForword(input);
+        std::vector<T> preds = nn.getPredictions();
+        if (is_classification) {
+            if (std::round(preds[0]) == Y_true[i][0]) running_correct += 1.;
+        } else {
+            running_sq_sum += (preds[0] - Y_true[i][0]) * (preds[0] - Y_true[i][0]);
+        }
+    }
+
+    if (is_classification) {
+        std::cout << "Accuracy:" << running_correct / X_test.size() << std::endl;
+    } else {
+        std::cout << "MSE:" << running_sq_sum / X_test.size() << std::endl;
+    }
+    std::cout << "---------------" << std::endl;
+}
