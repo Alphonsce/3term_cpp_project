@@ -11,9 +11,10 @@ namespace sp {
     
 template<typename T>
 class Matrix2D {
-public:
+private:
     uint32_t _cols;
     uint32_t _rows;
+public:
     std::vector<T> _vals;
 
 public:
@@ -83,6 +84,7 @@ public:
             }
         return output;
     }
+    
     Matrix2D applyFunction(std::function<T(const T&)> func)
     {
         Matrix2D output(_cols, _rows);

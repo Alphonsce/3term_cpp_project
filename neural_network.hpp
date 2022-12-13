@@ -41,7 +41,7 @@ namespace sp
     {
         public:
             std::string _type;       // classification (cl) or regression (reg)
-            std::string _loss;      // simple / MSE / entropy
+            std::string _loss;      // TODO: simple / MSE / entropy
             std::vector<uint32_t> _topology;
             std::vector<Matrix2D<float>> _weightMatrices;
             std::vector<Matrix2D<float>> _valueMatrices;

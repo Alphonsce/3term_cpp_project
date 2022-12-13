@@ -24,6 +24,7 @@ int main()
     identicalTesting();     // y = x
     linearTesting();    // y = 2x + 1
     rootTesting();      // y = sqrt(x)
+    squareTesting();    // y = sqr(x)
 
     return 0;
 }
